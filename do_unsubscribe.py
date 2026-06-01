@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""
+Run curl unsubscribe requests for all 39 threads with found URLs,
+then save results to unsubscribe_results.json.
+Unlabeling will be done separately via MCP tool.
+"""
+import subprocess, json, sys
+
+# Complete URL mapping from extraction phase
+THREADS = [
+    {"sender": "hometalk", "threadId": "19e80815c56e3428",
+     "url": "https://www.hometalk.com/opt-out?se=fol_new_ext-20260531-2nd_newsletter_ht&utm_medium=fol_new_ext"},
+    {"sender": "personalizationmall", "threadId": "19e80485a10329ea",
+     "url": "https://click.email.personalizationmall.com/?qs=ABB7InYiOjEsImQiOjQ4OTN9AAYAAAAAAY_U7I7iJAgBXJipKzgD6Rq01zy129eALyG4ZZPjbjnfLukU4kLNAucVYdIHA5FzYB5nzQOAVLS2B8OwuPyKZ-GZisRxyumXuuxR"},
+    {"sender": "worldcoppersmith", "threadId": "19e8045248f22127",
+     "url": "https://manage.kmail-lists.com/subscriptions/unsubscribe?a=M2JEjb&c=NKhJgb&k"},
+    {"sender": "sharperimage", "threadId": "19e803aeea0e8826",
+     "url": "https://manage.kmail-lists.com/subscriptions/unsubscribe?a=VNNTBx&c=KBY8TNC430B3J0C3M5HNS4BD&k"},
+    {"sender": "latimerforny", "threadId": "19e802aede77de49",
+     "url": "https://secure.ngpvan.com/p/-Phg2RhDIEGJVPbb5vK87g2?unsubscribedata="},
+    {"sender": "comedycellar", "threadId": "19e7fd7b0fe8fd78",
+     "url": "http://comedycellar.com/mailwizz/index.php/lists/eg1628dshc05c/unsubscribe/537ff7f9093e5/gh9893t8h4d5e"},
+    {"sender": "childrensplace", "threadId": "19e7fc09b5ad1d26",
+     "url": "https://click.emails.childrensplace.com/?qs=ABB7InYiOjEsImQiOjQ4OTN9AAwAAAAAAO87Krec3K16wBqdrsTHjKUlUBtZJe3fJjLXXDsT3lpcZ83De_HC4DDAsDhOZiS7yd_IJhOh7EiAVLVVWYHB7KwYd6Ti_LMTjGQ8huZ4sjxx-36v"},
+    {"sender": "stubhub", "threadId": "19e7fa4899ef6c03",
+     "url": "https://my.stubhub.com/emailpreferences/unsubscribe?securityguid=&EmailID=&pcid=EMSHNLBES"},
+    {"sender": "quince", "threadId": "19e7fa0f899cb123",
+     "url": "https://links.quince.com/e/eh?_t"},
+    {"sender": "cheapoair", "threadId": "19e7f89b2df4e4cc",
+     "url": "https://link.cheapoair.com/handler/v1/click?audid=76613993"},
+    {"sender": "bhg", "threadId": "19e7f8498c436a6f",
+     "url": "https://links.bhg.com/e/eh?_t6ba8fa8372241d58b3bfc06997a4332"},
+    {"sender": "going", "threadId": "19e7f4f93d6b937e",
+     "url": "https://clicks.going.com/f/a/3F3__uscJk0CTinZWxLuig~~/AAQRxRA~/BMmBM6mlFkrM1_4CSSJyF1WZeGc2JFai00U40NUcRRcRVvKiI8_wAbPO6SQsiaAIvIRo0TuWZsvyybWLzzPmjDuUOblJWYpqAXKvPIg42dA5kJg6Zu6iVltlSIOsvmRa4lhLxYZLit5U1QZc6jDjkg5A-0kXvaaOCCwknFy8-6XCcaNHInjw6fEyAyYkYRTDPGoKdcGLkYw-0XUO51iFRQIEEXkCXW5C8Li7YGw0Atrp98OJxo882vuNK5XmK1xQDXDBD7AsxAPG94AYy4egZm157CeRAT2xBsOGDxNDDjqUSRQtyooCu7ZPWtulngTw"},
+    {"sender": "instacart", "threadId": "19e7f47325391ca9",
+     "url": "https://03.emailinboundprocessing.com/email/manage_subscriptions/%241%24noBhyu1r16d6slXQdWcX5A%3D%3D%24HN%2BhZWRd9OWuGmREIdH%2FnqGK9td9deMyg17BiKL7BjY%3D"},
+    {"sender": "cvs", "threadId": "19e7f3ec44d07c7d",
+     "url": "https://click.web.cvs.com/?qs=ABB7InYiOjEsImQiOjQ4OTN9AAoAAAAAAVCCoS3hCTLbx9SW0reFS7x1GAjfr9K0YBA1bTzCLtl0ajQMB5a-hO7dgupGi5ven5xC88L5hz-jhjtmDiJlZp0WsQVJZdXgFVXXM_lWXEASpTk"},
+    {"sender": "masterclass", "threadId": "19e7f32a174365e9",
+     "url": None},
+    {"sender": "smartwool", "threadId": "19e7f03b713ff076",
+     "url": "https://trk.e.smartwool-mail.com/ss/c/u001.agBANPQDh4rvEpHSeNiaMue8aT8uOg0GlvS6EjzjmcKipfv6Z7ya7xaYS5gcO_jQLBRT3FN5uuFdZyCW9dRFKQgKdAHavxqbQ5-3wpeM1YHXS1d2S5dy5W6oR0HRXP04xqUjyuirx2iVaNlMzaVIBx9OXFvSdCYN6SR4HqFOp-vhA4So5N8pREE4fc3SDxdhQ7hPHDr8wI7QqFv0g"},
+    {"sender": "wilson", "threadId": "19e7ef6d3288e0eb",
+     "url": "https://click.insider.wilson.com/?qs=ABB7InYiOjEsImQiOjQ4OTN9AAYAAAAAAZABWhTBl5i2uXDGbKUNno_DJ6ZwtU17nNguO9nmbqe7cjc7OWCgg0fcM9-l9DUBM66Fr9xh2y_dBOPvgMCmsDVN7FLlTdV3yLfIR7bqtBY"},
+    {"sender": "experian", "threadId": "19e7ee89e29c76e1",
+     "url": "https://click.e.usa.experian.com/u/?qs=ABB7InYiOjEsImQiOjQ4OTN9AAcAAAAAAhwLq4KuqPqF3SeftTzzdD1yjXV6n0jp3pVgBv9l1OiU_RIpn0m4tP3w2gf3Qgo-nZacE4iFrtoBRjqL2Q1AQQXQfR7pDgbwfvdYCGWcrsM8NbA"},
+    {"sender": "sabonusa", "threadId": "19e7edf8b7f128da",
+     "url": "https://ctrk.klclick.com/l/01KSZD38BQHND8FBNW8CHMEC47_26"},
+    {"sender": "guardianbikes", "threadId": "19e7ec81d167498c",
+     "url": "https://manage.kmail-lists.com/subscriptions/unsubscribe?a=XRefKG&c=GXFQD8JMHDK4EDS3PVVX37MQ&k"},
+    {"sender": "scandinaviandesigns", "threadId": "19e7ec4d9f95b4e0",
+     "url": "https://ctrk.klclick.com/l/01KSZBWH26GSG97EFA28HJRAKE_17"},
+    {"sender": "riseart", "threadId": "19e7ec3968a4897f",
+     "url": "https://riseart.acemlnb.com/proc.php?nl=2&c=32&m=010&s=f9c237f7a6aa57732d681cc313ccc9&act=unsub"},
+    {"sender": "bonobos", "threadId": "19e7ea9cf2639110",
+     "url": "https://url6440.marketing.attentivemail.com/wf/unsubscribe?upn="},
+    {"sender": "kayak", "threadId": "19e7e92f97ef3737",
+     "url": "https://link.kayak.com/v1/emailclick?q=r1iq9GB_lRBeUCwlekQTAOyTh8bFLwbz81hxyAE6EFZYFZuE-"},
+    {"sender": "abercrombie", "threadId": "19e7e8324e66837d",
+     "url": "https://e.em.abercrombie.com/c2/1981:6a10c2caae1db8e7ba092e0b:ot:69cfd3a5e4e54eab880744f4:1/01904663"},
+    {"sender": "thenorthface", "threadId": "19e7e6dbd8b1a109",
+     "url": "https://click.e.thenorthface.com/?qs=ABB7InYiOjEsImQiOjQ4OTN9AAsAAAAAAYpmc_-mtJ7klUzQxoTdGFOIW4WLIpxieHDC3vUyTgjha9rxBpbG8lQkhZqyzwZaakFJE0sDl2kU465U1DC6mrmTyQGlTwq_fFe7-9xKhQ"},
+    {"sender": "lids", "threadId": "19e7e67bb253c4c4",
+     "url": "https://public-usa.mkt.dynamics.com/api/orgs/ef0681b4-9dd5-ee11-9048-6045bd003f26/r/9RFvuYWPaEuz6SLzr8gBAAgAAAA?msdynmkt_target=%7B%22TargetUrl%22%3A%22https%253A%252F%252Fpublic-usa.mkt.dynamics.com%252Fapi%252Fv2.0%252Forgs%252Fef0681b4-9dd5-ee11-9048-6045bd003f26%252Fconsent%252Fpreferences%253FcontextId%253Dcfe69d8e-1edc-4e7e-a9c6-6e787f1c0200%22%7D"},
+    {"sender": "interiordefine", "threadId": "19e7e5dfb0b6d0e2",
+     "url": "https://clicks.interiordefine.com/f/a/6Wr8JypXdmrFKwIJ8kF8KQ~~/AAQRxRA~/7lzx1IUwQTvcqLLf3PUzefGhM0BTQm2YGAPi3UeLIBqb6egrKmd17OAf6FSYUvioCDelwrLXXER5WYmNQo8oPsOCZa2DligBLw8mlSjj6BsFVHztpq264sx3Ck79ESEay0tRjKQSk7WWz99cijJMC9cDq6hpYPrHOpHehmug1Y4O5KRo1R5bgRAdHtQMoFzB8fGP9AjNoHwZdUbFF5r6PegJKlx048QE2qDO9Wnqi3HvhTbNuadlYHRj_UIEm6IOSsp-wffJF6c7BAxNEABVSYCz3qoLLMXDu3omqAMTwZwUBqiPmOSlKIWFYxNxMEFaUBqZsIDuNLAp3xcXiCxt6iGPnd1pyQGx_XEQoGiwLfwVuP0StVXMMRFPXvWB5hXhlReBlaLSdpoxeYqg578AjEYYHL-PCOxLDLBME9iRLMZTz29g-2W3P2TYfd3jEa3TMOkEJ5Abtp-zMcj6Gkqy7UpmR_UhWmp1ysy0Tuhs72UCZBa0fZs8OXy5cEV-69xadHeXsxcISHtXYrJQ2ROCb8zwF8gTS6GBiQ4176n96fIZ-UnhTRVg36t8YqB8hiJYAWmemJkPAsY9AWgPmscbQkkfxIMfSGSQJabvHZlerm6bOMm6Tt_j3FCWR2x50ZM0jPQTBCIsulz6uD_Frei-og~~"},
+    {"sender": "hernest", "threadId": "19e7e5589ac58a5e",
+     "url": "https://link.hernest.com/u/un.php?par=lcvJPlO9Hf_272353_5568_$sid$&_esuh=_11_6461555008ce71594284ca820b2a0375d23da8600945683e4159f578d7f161a7"},
+    {"sender": "lego", "threadId": "19e7e484d83ea64f",
+     "url": "https://click.e.crm.lego.com/?qs=ABB7InYiOjEsImQiOjQ4OTN9ADIAAAAAAJZyirvmL34Cwlp1GTVL1V8PJAdhvd8gf-Ty_Bc18Qcd31cHXvQCJDri_XXb8kcLp8OKO6i6BjWNxnmR_qQP3V9tKL8vLe-Grx7UJ_7ks-RTkjOO"},
+    {"sender": "smithsonian", "threadId": "19e7e3d3b0269c98",
+     "url": "https://click.airandspace.smithsonian.org/?qs=ABB7InYiOjEsImQiOjQ4OTN9AA0AAAAAAFujjsjJP6pMTRm231PC1yU3xhpX9n3diHmnbolkxxezM5gsNVSFZp27MeJ6V8UgT_qNECaqs1a5Mwiqrn8xfHDKMrjMqeieCoUviEsA4OT-xwdx"},
+    {"sender": "colehaan", "threadId": "19e7e38505324739",
+     "url": "https://e.sp.colehaan.com/c2/1371:6a0ca005b5cefe033606179e:ot:67ba7448a859eab0a90a8690:1/b7f20f05"},
+    {"sender": "skechers", "threadId": "19e7e2b39bb66723",
+     "url": "https://www.skechers.com/Preference_Center.html?qs=ABB7InYiOjEsImQiOjQ4OTN9AAoAAAAAAVGY3pJUaZCt8abCwMTg3k-TAb-we1bWY030I3Y_eh0tEtuofydAiF2g5ErH92cfV3V_hpMTtGysl2xSrq4nDRoxAiHfpgsG7i-yixmR8Q0y_hFr4LifgJj7fGJRsDJIVr-nkCRLbjPbnb-xn5XIXrjPzROjg1LI0oZgrY6H2qgz4G1acQ"},
+    {"sender": "tillys", "threadId": "19e7e20fd9571004",
+     "url": "https://trk.tillys.com/l/01KSZ1N08VR477JGCGZ390R4MN_35"},
+    {"sender": "uncommongoods", "threadId": "19e7e1a68d834d21",
+     "url": "https://enews.uncommongoods.com/q/oWEdCd-jNEoT0X3SY3Ce9He_oFPHZESbPw8ZcOJdG9tZXJtZWxtYW5AZ21haWwuY29tw4gHsgkfn9UdIHLd3mJDmZuA_hjIIQ"},
+    {"sender": "instructables", "threadId": "19e7e0be6853e1ed",
+     "url": "https://url9968.mail.instructables.com/asm/unsubscribe/?user_id=24168"},
+    {"sender": "beistravel", "threadId": "19e7e03a7b37e561",
+     "url": "https://ctrk.klclick.com/l/01KSYZNPHX6ZG19NWEP888X7Z4_21"},
+    {"sender": "life360", "threadId": "19e7dfebecebd93f",
+     "url": "https://link.devices.life360.com/ls/click?upn=u001.xgU-2BMrxiLiqcy9-2BOiuzLcq8rn22RvK1Z5XMuSm1AzweZP9xfWnIJrP7PlYjdRIMPmS0oNZ8kia1LtHvj43mcuxVRc1J3fW0X8IWg12G6EuSAw7hnY4W87ytFru-2FtbcAZ7gEBIDOOsmsrI6NBUXeHFvJJ"},
+    {"sender": "rocketmoney", "threadId": "19e7dfdaf0b33f49",
+     "url": "https://ablink.email.rocketmoney.com/ls/click?upn=u001.Wbl4MBulID6vBEMKdluSrRVVrToNH8u7"},
+    {"sender": "arhaus", "threadId": "19e7de9c6bdcfc7c",
+     "url": "https://ctrk.klclick.com/l/01KSYY6CJC4MQYQ2MHEGW8WP46_29"},
+]
+
+
+def curl_get(url):
+    """Run curl GET, return status code (int)."""
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "-L", "-o", "/dev/null", "-w", "%{http_code}",
+             "--max-time", "30", "--connect-timeout", "10", url],
+            capture_output=True, text=True, timeout=40
+        )
+        code = result.stdout.strip()
+        return int(code) if code.isdigit() else 0
+    except Exception as e:
+        print(f"  curl GET error: {e}", file=sys.stderr)
+        return 0
+
+
+def curl_post(url):
+    """Run curl POST (empty body), return status code (int)."""
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "-L", "-X", "POST", "-o", "/dev/null", "-w", "%{http_code}",
+             "--max-time", "30", "--connect-timeout", "10", url],
+            capture_output=True, text=True, timeout=40
+        )
+        code = result.stdout.strip()
+        return int(code) if code.isdigit() else 0
+    except Exception as e:
+        print(f"  curl POST error: {e}", file=sys.stderr)
+        return 0
+
+
+results = {"unsubscribed": [], "no_url_found": [], "failed": []}
+
+for t in THREADS:
+    sender = t["sender"]
+    tid = t["threadId"]
+    url = t["url"]
+
+    if not url:
+        print(f"[{sender}] No URL found")
+        results["no_url_found"].append({"sender": sender, "threadId": tid})
+        continue
+
+    print(f"[{sender}] GET {url[:80]}...")
+    status = curl_get(url)
+    print(f"  -> {status}")
+
+    if status >= 400 or status == 0:
+        print(f"  -> POST fallback")
+        status2 = curl_post(url)
+        print(f"  -> POST {status2}")
+        if status2 < 400 and status2 != 0:
+            status = status2
+
+    entry = {"sender": sender, "threadId": tid, "url": url, "status": status}
+    if status == 0 or status >= 400:
+        results["failed"].append(entry)
+    else:
+        results["unsubscribed"].append(entry)
+
+# Write results
+out_path = "/home/user/tomer-org/unsubscribe_results.json"
+with open(out_path, "w") as f:
+    json.dump(results, f, indent=2)
+
+print(f"\nDone!")
+print(f"  Unsubscribed: {len(results['unsubscribed'])}")
+print(f"  No URL: {len(results['no_url_found'])}")
+print(f"  Failed: {len(results['failed'])}")
+print(f"Results saved to {out_path}")
